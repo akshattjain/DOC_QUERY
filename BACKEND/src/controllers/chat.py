@@ -107,21 +107,25 @@ async def send_message(chat_id: int, data: MessageCreate, request: Request, user
         # Save user message
         await messages.create_message(connection, chat_id, "user", data.content)
         
-        # Retrieve context and generate response with LLM
+        # Retrieve context and generate response with LangGraph
         qdrant_client = request.app.state.qdrant_client
-        response_content, references = await llm_service.generate_response(
+        from src.services import llm_graph_service
+        
+        response_content, references, pipeline_data = await llm_graph_service.generate_graph_response(
             query=data.content, 
             qdrant_client=qdrant_client, 
-            qdrant_collection_name="documents", 
             file_ids=chat_obj["file_ids"],
             chat_history=history_msgs
         )
         
-        # Save AI message
-        ai_msg_id = await messages.create_message(connection, chat_id, "assistant", response_content)
+        # Save AI message with new metadata
+        ai_msg_id = await messages.create_message(
+            connection, chat_id, "assistant", response_content, references=references, pipeline_data=pipeline_data
+        )
         await connection.commit()
         
         return {
             "message": response_content,
-            "references": references
+            "references": references,
+            "pipeline_data": pipeline_data
         }

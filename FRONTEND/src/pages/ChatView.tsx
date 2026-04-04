@@ -1,17 +1,84 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChatMessages, useChatById, useSendMessage } from '../hooks/useChat';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, ChevronDown, ChevronRight, Activity, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../components/Button';
 
+const MessageExtras = ({ msg }: { msg: any }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!msg.pipeline_data?.length && !msg.references?.length) return null;
+
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-3">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700 transition"
+      >
+        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        <Activity size={14} />
+        LangGraph Pipeline & Sources
+      </button>
+
+      {isOpen && (
+        <div className="mt-3 space-y-4">
+          {/* Pipeline */}
+          {msg.pipeline_data?.length > 0 && (
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <h4 className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Pipeline Execution</h4>
+              <div className="space-y-2">
+                {msg.pipeline_data.map((step: any, i: number) => (
+                  <div key={i} className="flex items-start gap-2 text-xs">
+                    <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></div>
+                    <div>
+                      <span className="font-medium text-slate-800">{step.step}:</span>{' '}
+                      <span className={step.status === 'RELEVANT' ? 'text-green-600 font-medium' : 'text-slate-600'}>
+                        {step.status}
+                      </span>
+                      {step.score !== undefined && <span className="ml-1 text-slate-500">(score: {step.score})</span>}
+                      <p className="text-slate-500 mt-0.5">{step.details}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* References */}
+          {msg.references?.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide flex items-center gap-1">
+                <FileText size={12} />
+                Answer was built from these chunks
+              </h4>
+              <div className="space-y-2">
+                {msg.references.map((ref: any, i: number) => (
+                  <div key={i} className="bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100 text-xs">
+                    <div className="flex justify-between items-center mb-1 text-indigo-900 border-b border-indigo-100/50 pb-1">
+                      <span className="font-medium truncate mr-2">{ref.filename} (Page {ref.page_number})</span>
+                      <span className="shrink-0 bg-white px-2 py-0.5 rounded-full text-[10px] font-semibold border border-indigo-100">
+                        Score: {ref.score}
+                      </span>
+                    </div>
+                    <p className="text-slate-600 line-clamp-3 hover:line-clamp-none transition-all">{ref.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 export default function ChatView() {
   const { id } = useParams();
   const { data: chat } = useChatById(id!);
   const { data: messages, isLoading } = useChatMessages(id!);
   const { mutateAsync: sendMessage, isPending } = useSendMessage();
-  
+
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -73,14 +140,17 @@ export default function ChatView() {
                   </div>
                   <div className={cn(
                     "px-4 py-3 rounded-2xl max-w-[80%] text-[0.95rem] leading-relaxed shadow-sm overflow-hidden",
-                    isAssistant 
+                    isAssistant
                       ? "bg-white border border-slate-200 text-slate-800 rounded-tl-sm prose prose-sm prose-slate max-w-none prose-p:leading-relaxed prose-pre:bg-slate-50 prose-pre:border prose-pre:border-slate-200 prose-pre:text-slate-800"
                       : "bg-indigo-600 text-white rounded-tr-sm"
                   )}>
                     {isAssistant ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                         {msg.content}
-                      </ReactMarkdown>
+                      <div>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                        <MessageExtras msg={msg} />
+                      </div>
                     ) : (
                       msg.content
                     )}
@@ -90,16 +160,16 @@ export default function ChatView() {
             })
           )}
           {isPending && (
-             <div className="flex gap-4 flex-row">
-               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-1 bg-indigo-100 text-indigo-700">
-                 <Bot size={18} />
-               </div>
-               <div className="px-4 py-3.5 rounded-2xl bg-white border border-slate-200 text-slate-800 rounded-tl-sm flex items-center gap-2">
-                 <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></span>
-                 <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-75"></span>
-                 <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-150"></span>
-               </div>
-             </div>
+            <div className="flex gap-4 flex-row">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-1 bg-indigo-100 text-indigo-700">
+                <Bot size={18} />
+              </div>
+              <div className="px-4 py-3.5 rounded-2xl bg-white border border-slate-200 text-slate-800 rounded-tl-sm flex items-center gap-2">
+                <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-75"></span>
+                <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-150"></span>
+              </div>
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -116,8 +186,8 @@ export default function ChatView() {
             onChange={(e) => setInput(e.target.value)}
             disabled={isPending}
           />
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={!input.trim() || isPending}
             className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-50 disabled:pointer-events-none transition-colors"
           >
