@@ -29,6 +29,15 @@ export interface MessageResponse {
 }
 
 export interface UploadResponse {
-  message: string;
-  file_id: number;
+  job_id: string;
+}
+
+export interface UploadStatusResponse {
+  status: 'processing' | 'done' | 'error';
+  file_id: number | null;
+  error: string | null;
+}
+
+export interface InitUploadResponse {
+  upload_id: string;
 }
